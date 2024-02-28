@@ -1,0 +1,17 @@
+[package]
+name = "emulator-hal"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.60"
+categories = ["no-std", "emulators", "simulation"]
+keywords = ["emulators", "simulation"]
+description = "a set of traits for interfacing between emulated hardware devices"
+authors = ["transistor fet <trans@jabberwocky.ca>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/transistorfet/moa"
+
+[dependencies]
+
+[features]
+default = ["alloc"]
+alloc = []

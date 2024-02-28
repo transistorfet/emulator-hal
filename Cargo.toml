@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "emulator-hal",
+    "emulator-hal-memory",
+    "emulator-host",
+]
+
