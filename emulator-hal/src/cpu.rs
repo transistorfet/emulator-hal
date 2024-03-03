@@ -8,56 +8,65 @@ pub trait Step<Bus>
 where
     Bus: BusAccess,
 {
+    /// A type that is return if the step cannot be performed
+    ///
+    /// Note: this is not the same as BusType::Error.  It is up to the implementor to impose a constraint
+    ///       if desired, that BusType::Error: Self::Error or BusType::Error: Into<Self::Error>
     type Error;
 
+    /// Returns true if this device is still running.  This can be used to detect a stop condition
     fn is_running(&mut self) -> bool;
 
+    /// Reset the device to its initial state, as if the device's reset signal was asserted
     fn reset(&mut self, now: Bus::Instant, bus: &mut Bus) -> Result<(), Self::Error>;
 
+    /// Step the execute by one unit of time, and return the time at which this device's step should be called again
+    ///
+    /// The given `Instant` is the time at which this step occurs, and the returned `Instant` is the time of the
+    /// next step should occur, according to the device itself.  The given bus can be used to access the system
     fn step(&mut self, now: Bus::Instant, bus: &mut Bus) -> Result<Bus::Instant, Self::Error>;
 
     // TODO should this be in the Debug trait instead, where the Debug trait will mainly be implemented by CPUs
     /// Optional method to set the address used by the next call to `step`
     ///
     /// This is specifically for CPU implementations
-    fn set_start_address(&mut self, address: Bus::Address) -> Result<(), Self::Error> {
+    fn set_start_address(&mut self, _address: Bus::Address) -> Result<(), Self::Error> {
         Ok(())
     }
 }
 
-/*
-/// A device (cpu) that can debugged using the built-in debugger
-pub trait Debug<Bus>
-where
-    Bus: BusAccess
-{
-    type Error;
-
-    // TODO these can be implemented by the caller using get/set address
-    //fn add_breakpoint(&mut self, addr: Bus::Address);
-    //fn remove_breakpoint(&mut self, addr: Bus::Address);
-
-    // TODO these can be implemented using Inspect
-    //fn print_current_step(&mut self, bus: Bus) -> Result<(), Self::Error>;
-    //fn print_disassembly(&mut self, addr: Bus::Address, count: usize);
-
-    fn run_command(&mut self, bus: Bus, args: &[&str]) -> Result<bool, Self::Error>;
-
-    fn get_current_address(&mut self) -> Result<Bus::Address, Self::Error>;
-    fn set_start_address(&mut self, address: Bus::Address) -> Result<(), Self::Error>;
-}
-*/
-
+// TODO should this depend on Step, which is the most common way it will be used, even though it technically could
+// be used for a device that just has a bus interface with no clock
 /// Inspect the state of a device, and emit it to an object that implements `fmt::Write`
-pub trait Inspect<W>
+pub trait Inspect<W, Bus>
 where
     W: fmt::Write,
+    Bus: BusAccess,
 {
+    /// A type that describes the types of information or state that this device can emit
     type InfoType;
+
+    /// A type that is returned if the data cannot be written as expected
     type Error;
 
-    fn inspect(&mut self, info: Self::InfoType, writer: &mut W) -> Result<(), Self::Error>;
+    /// Write the given information type to the given writer, or return an error
+    fn inspect(&mut self, writer: &mut W, info: Self::InfoType, bus: &mut Bus) -> Result<(), Self::Error>;
 }
+
+/// Control the execution of a CPU device for debugging purposes
+pub trait Debug<W, Bus>: Inspect<W, Bus> + Step<Bus>
+where
+    W: fmt::Write,
+    Bus: BusAccess,
+{
+    type Error;
+
+    fn run_command(&mut self, bus: &mut Bus, args: &[&str]) -> Result<bool, <Self as Debug<W, Bus>>::Error>;
+
+    fn get_current_address(&mut self) -> Result<Bus::Address, <Self as Debug<W, Bus>>::Error>;
+    fn set_start_address(&mut self, address: Bus::Address) -> Result<(), <Self as Debug<W, Bus>>::Error>;
+}
+
 
 
 #[cfg(test)]
@@ -79,16 +88,16 @@ mod test {
     }
 
     impl BusAccess for Memory {
-        fn read(&mut self, _now: Instant, addr: u64, data: &mut [u8]) -> Result<(), Self::Error> {
+        fn read(&mut self, _now: Instant, addr: u64, data: &mut [u8]) -> Result<usize, Self::Error> {
             let addr = addr as usize;
             data.copy_from_slice(&self.0[addr..addr + data.len()]);
-            Ok(())
+            Ok(data.len())
         }
 
-        fn write(&mut self, _now: Instant, addr: u64, data: &[u8]) -> Result<(), Self::Error> {
+        fn write(&mut self, _now: Instant, addr: u64, data: &[u8]) -> Result<usize, Self::Error> {
             let addr = addr as usize;
             self.0[addr..addr + data.len()].copy_from_slice(data);
-            Ok(())
+            Ok(data.len())
         }
     }
 

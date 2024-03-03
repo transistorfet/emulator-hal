@@ -49,10 +49,16 @@ pub trait BusAccess: BusType {
     //fn size(&self) -> usize;
 
     /// Read an arbitrary length of bytes from this device, at time `now`
-    fn read(&mut self, now: Self::Instant, addr: Self::Address, data: &mut [u8]) -> Result<(), Self::Error>;
+    ///
+    /// Returns the number of bytes read, which would normally be the same as `data.len()`
+    /// but could be less or zero if no data is returned
+    fn read(&mut self, now: Self::Instant, addr: Self::Address, data: &mut [u8]) -> Result<usize, Self::Error>;
 
     /// Write an arbitrary length of bytes into this device, at time `now`
-    fn write(&mut self, now: Self::Instant, addr: Self::Address, data: &[u8]) -> Result<(), Self::Error>;
+    ///
+    /// Returns the number of bytes written, which would normally be the same as `data.len()`
+    /// but could be less or zero if no data was written or the memory was read-only
+    fn write(&mut self, now: Self::Instant, addr: Self::Address, data: &[u8]) -> Result<usize, Self::Error>;
 
     /// Read a single u8 value at the given address
     #[inline]
@@ -141,21 +147,24 @@ pub trait BusAccess: BusType {
     #[inline]
     fn write_u8(&mut self, now: Self::Instant, addr: Self::Address, value: u8) -> Result<(), Self::Error> {
         let data = [value];
-        self.write(now, addr, &data)
+        self.write(now, addr, &data)?;
+        Ok(())
     }
 
     /// Write the given u16 value in big endian byte order to the given address
     #[inline]
     fn write_beu16(&mut self, now: Self::Instant, addr: Self::Address, value: u16) -> Result<(), Self::Error> {
         let data = value.to_be_bytes();
-        self.write(now, addr, &data)
+        self.write(now, addr, &data)?;
+        Ok(())
     }
 
     /// Write the given u16 value in little endian byte order to the given address
     #[inline]
     fn write_leu16(&mut self, now: Self::Instant, addr: Self::Address, value: u16) -> Result<(), Self::Error> {
         let data = value.to_le_bytes();
-        self.write(now, addr, &data)
+        self.write(now, addr, &data)?;
+        Ok(())
     }
 
     /// Write the given u16 value in the given byte order to the given address
@@ -171,14 +180,16 @@ pub trait BusAccess: BusType {
     #[inline]
     fn write_beu32(&mut self, now: Self::Instant, addr: Self::Address, value: u32) -> Result<(), Self::Error> {
         let data = value.to_be_bytes();
-        self.write(now, addr, &data)
+        self.write(now, addr, &data)?;
+        Ok(())
     }
 
     /// Write the given u32 value in little endian byte order to the given address
     #[inline]
     fn write_leu32(&mut self, now: Self::Instant, addr: Self::Address, value: u32) -> Result<(), Self::Error> {
         let data = value.to_le_bytes();
-        self.write(now, addr, &data)
+        self.write(now, addr, &data)?;
+        Ok(())
     }
 
     /// Write the given u32 value in the given byte order to the given address
@@ -194,14 +205,16 @@ pub trait BusAccess: BusType {
     #[inline]
     fn write_beu64(&mut self, now: Self::Instant, addr: Self::Address, value: u64) -> Result<(), Self::Error> {
         let data = value.to_be_bytes();
-        self.write(now, addr, &data)
+        self.write(now, addr, &data)?;
+        Ok(())
     }
 
     /// Write the given u64 value in little endian byte order to the given address
     #[inline]
     fn write_leu64(&mut self, now: Self::Instant, addr: Self::Address, value: u64) -> Result<(), Self::Error> {
         let data = value.to_le_bytes();
-        self.write(now, addr, &data)
+        self.write(now, addr, &data)?;
+        Ok(())
     }
 
     /// Write the given u64 value in the given byte order to the given address
@@ -216,12 +229,12 @@ pub trait BusAccess: BusType {
 
 impl<T: BusAccess + ?Sized> BusAccess for &mut T {
     #[inline]
-    fn read(&mut self, now: T::Instant, addr: T::Address, data: &mut [u8]) -> Result<(), T::Error> {
+    fn read(&mut self, now: T::Instant, addr: T::Address, data: &mut [u8]) -> Result<usize, T::Error> {
         T::read(self, now, addr, data)
     }
 
     #[inline]
-    fn write(&mut self, now: T::Instant, addr: T::Address, data: &[u8]) -> Result<(), T::Error> {
+    fn write(&mut self, now: T::Instant, addr: T::Address, data: &[u8]) -> Result<usize, T::Error> {
         T::write(self, now, addr, data)
     }
 }
@@ -229,12 +242,12 @@ impl<T: BusAccess + ?Sized> BusAccess for &mut T {
 #[cfg(feature = "alloc")]
 impl<T: BusAccess + ?Sized> BusAccess for alloc::boxed::Box<T> {
     #[inline]
-    fn read(&mut self, now: T::Instant, addr: T::Address, data: &mut [u8]) -> Result<(), T::Error> {
+    fn read(&mut self, now: T::Instant, addr: T::Address, data: &mut [u8]) -> Result<usize, T::Error> {
         T::read(self, now, addr, data)
     }
 
     #[inline]
-    fn write(&mut self, now: T::Instant, addr: T::Address, data: &[u8]) -> Result<(), T::Error> {
+    fn write(&mut self, now: T::Instant, addr: T::Address, data: &[u8]) -> Result<usize, T::Error> {
         T::write(self, now, addr, data)
     }
 }
@@ -260,16 +273,16 @@ mod test {
         }
 
         impl BusAccess for Memory {
-            fn read(&mut self, _now: Instant, addr: u64, data: &mut [u8]) -> Result<(), Self::Error> {
+            fn read(&mut self, _now: Instant, addr: u64, data: &mut [u8]) -> Result<usize, Self::Error> {
                 let addr = addr as usize;
                 data.copy_from_slice(&self.0[addr..addr + data.len()]);
-                Ok(())
+                Ok(data.len())
             }
 
-            fn write(&mut self, _now: Instant, addr: u64, data: &[u8]) -> Result<(), Self::Error> {
+            fn write(&mut self, _now: Instant, addr: u64, data: &[u8]) -> Result<usize, Self::Error> {
                 let addr = addr as usize;
                 self.0[addr..addr + data.len()].copy_from_slice(data);
-                Ok(())
+                Ok(data.len())
             }
         }
 
