@@ -17,8 +17,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          components: rustdoc
 
       - name: Build rustdoc
         run: |
-          cargo doc
+          RUSTDOCFLAGS="--deny=warnings --cfg=docsrs" cargo doc --all-features

@@ -4,8 +4,8 @@
 
 extern crate alloc;
 
-use core::marker::PhantomData;
 use alloc::vec::Vec;
+use core::marker::PhantomData;
 
 use emulator_hal::bus::{BusAccess, SimpleBusError};
 
@@ -81,10 +81,16 @@ where
 {
     type Error = SimpleBusError;
 
-    fn read(&mut self, _now: Instant, addr: Address, data: &mut [u8]) -> Result<usize, Self::Error> {
-        let addr = addr.try_into()
+    fn read(
+        &mut self,
+        _now: Instant,
+        addr: Address,
+        data: &mut [u8],
+    ) -> Result<usize, Self::Error> {
+        let addr = addr
+            .try_into()
             .map_err(|_| SimpleBusError::UnmappedAddress)?;
-        data.copy_from_slice(&self.contents[addr .. addr + data.len()]);
+        data.copy_from_slice(&self.contents[addr..addr + data.len()]);
         Ok(data.len())
     }
 
@@ -93,13 +99,13 @@ where
             //return Err(Error::breakpoint(format!("Attempt to write to read-only memory at {:x} with data {:?}", addr, data)));
         }
 
-        let addr = addr.try_into()
+        let addr = addr
+            .try_into()
             .map_err(|_| SimpleBusError::UnmappedAddress)?;
-        self.contents[addr .. addr + data.len()].copy_from_slice(data);
+        self.contents[addr..addr + data.len()].copy_from_slice(data);
         Ok(data.len())
     }
 }
-
 
 #[cfg(test)]
 mod tests {

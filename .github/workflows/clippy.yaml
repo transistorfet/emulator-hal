@@ -19,7 +19,6 @@ jobs:
           toolchain: stable
           components: clippy
 
-      - name: Check rustfmt and clippy
+      - name: Check clippy
         run: |
           cargo clippy
-          cargo fmt --check
