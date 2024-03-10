@@ -1,3 +1,4 @@
+//! Traits and implementations for coordinating time between emulated components
 
 use core::ops::Add;
 
@@ -23,22 +24,20 @@ impl<T: Instant> InstantType for T {
 
 #[cfg(feature = "std")]
 impl Instant for std::time::Instant {
-   type Duration = std::time::Duration;
+    type Duration = std::time::Duration;
 }
 
 #[cfg(feature = "fugit")]
-impl Instant for fugit::Instant {
-   type Duration = fugit::Duration;
+impl<T, const NOM: u32, const DENOM: u32> Instant for fugit::Instant<T, NOM, DENOM>
+where
+    Self: Add<fugit::Duration<T, NOM, DENOM>>,
+{
+    type Duration = fugit::Duration<T, NOM, DENOM>;
 }
 
 #[cfg(feature = "femtos")]
 impl Instant for femtos::Instant {
-   type Duration = femtos::Duration;
-}
-
-#[cfg(feature = "embedded-time")]
-impl Instant for embedded_time::Instant {
-   type Duration = embedded_time::Duration;
+    type Duration = femtos::Duration;
 }
 
 #[cfg(test)]

@@ -1,11 +1,10 @@
+//! Traits for emulating read and write bus operations
 
 use core::fmt;
 use core::marker::PhantomData;
 
 /// Represents an error that occurred during a bus transaction
-pub trait Error: fmt::Debug {
-
-}
+pub trait Error: fmt::Debug {}
 
 //impl<T: fmt::Debug + ?Sized> Error for T {}
 
@@ -29,9 +28,7 @@ pub enum SimpleBusError {
 }
 
 // TODO the blanket impl covers this
-impl Error for SimpleBusError {
-
-}
+impl Error for SimpleBusError {}
 
 /*
 // TODO this would allow the error type to be shared between traits
@@ -52,7 +49,6 @@ impl<T: ErrorType + ?Sized> ErrorType for alloc::boxed::Box<T> {
 }
 */
 
-
 /// Represents the order of bytes in a `BusAccess` operation
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ByteOrder {
@@ -61,7 +57,6 @@ pub enum ByteOrder {
     /// Big endian byte order
     Big,
 }
-
 
 /// A device that can be addressed to read data from or write data to the device.
 ///
@@ -117,7 +112,12 @@ where
 
     /// Read a single u16 value in the given byte order at the given address
     #[inline]
-    fn read_u16(&mut self, order: ByteOrder, now: Instant, addr: Address) -> Result<u16, Self::Error> {
+    fn read_u16(
+        &mut self,
+        order: ByteOrder,
+        now: Instant,
+        addr: Address,
+    ) -> Result<u16, Self::Error> {
         match order {
             ByteOrder::Little => self.read_leu16(now, addr),
             ByteOrder::Big => self.read_beu16(now, addr),
@@ -142,7 +142,12 @@ where
 
     /// Read a single u32 value in the given byte order at the given address
     #[inline]
-    fn read_u32(&mut self, order: ByteOrder, now: Instant, addr: Address) -> Result<u32, Self::Error> {
+    fn read_u32(
+        &mut self,
+        order: ByteOrder,
+        now: Instant,
+        addr: Address,
+    ) -> Result<u32, Self::Error> {
         match order {
             ByteOrder::Little => self.read_leu32(now, addr),
             ByteOrder::Big => self.read_beu32(now, addr),
@@ -167,7 +172,12 @@ where
 
     /// Read a single u64 value in the given byte order at the given address
     #[inline]
-    fn read_u64(&mut self, order: ByteOrder, now: Instant, addr: Address) -> Result<u64, Self::Error> {
+    fn read_u64(
+        &mut self,
+        order: ByteOrder,
+        now: Instant,
+        addr: Address,
+    ) -> Result<u64, Self::Error> {
         match order {
             ByteOrder::Little => self.read_leu64(now, addr),
             ByteOrder::Big => self.read_beu64(now, addr),
@@ -200,7 +210,13 @@ where
 
     /// Write the given u16 value in the given byte order to the given address
     #[inline]
-    fn write_u16(&mut self, order: ByteOrder, now: Instant, addr: Address, value: u16) -> Result<(), Self::Error> {
+    fn write_u16(
+        &mut self,
+        order: ByteOrder,
+        now: Instant,
+        addr: Address,
+        value: u16,
+    ) -> Result<(), Self::Error> {
         match order {
             ByteOrder::Little => self.write_leu16(now, addr, value),
             ByteOrder::Big => self.write_beu16(now, addr, value),
@@ -225,7 +241,13 @@ where
 
     /// Write the given u32 value in the given byte order to the given address
     #[inline]
-    fn write_u32(&mut self, order: ByteOrder, now: Instant, addr: Address, value: u32) -> Result<(), Self::Error> {
+    fn write_u32(
+        &mut self,
+        order: ByteOrder,
+        now: Instant,
+        addr: Address,
+        value: u32,
+    ) -> Result<(), Self::Error> {
         match order {
             ByteOrder::Little => self.write_leu32(now, addr, value),
             ByteOrder::Big => self.write_beu32(now, addr, value),
@@ -250,7 +272,13 @@ where
 
     /// Write the given u64 value in the given byte order to the given address
     #[inline]
-    fn write_u64(&mut self, order: ByteOrder, now: Instant, addr: Address, value: u64) -> Result<(), Self::Error> {
+    fn write_u64(
+        &mut self,
+        order: ByteOrder,
+        now: Instant,
+        addr: Address,
+        value: u64,
+    ) -> Result<(), Self::Error> {
         match order {
             ByteOrder::Little => self.write_leu64(now, addr, value),
             ByteOrder::Big => self.write_beu64(now, addr, value),
@@ -261,7 +289,7 @@ where
 impl<Address, Instant, T> BusAccess<Address, Instant> for &mut T
 where
     Address: Copy,
-    T: BusAccess<Address, Instant> + ?Sized
+    T: BusAccess<Address, Instant> + ?Sized,
 {
     type Error = T::Error;
 
@@ -280,7 +308,7 @@ where
 impl<Address, Instant, T> BusAccess<Address, Instant> for alloc::boxed::Box<T>
 where
     Address: Copy,
-    T: BusAccess<Address, Instant> + ?Sized
+    T: BusAccess<Address, Instant> + ?Sized,
 {
     type Error = T::Error;
 
@@ -294,7 +322,6 @@ where
         T::write(self, now, addr, data)
     }
 }
-
 
 /// An adapter that applies an address translation before accessing a wrapped bus object
 ///
@@ -317,14 +344,19 @@ where
     pub instant: PhantomData<Instant>,
 }
 
-impl<AddressIn, AddressOut, Instant, Bus, ErrorOut> BusAdapter<AddressIn, AddressOut, Instant, Bus, ErrorOut>
+impl<AddressIn, AddressOut, Instant, Bus, ErrorOut>
+    BusAdapter<AddressIn, AddressOut, Instant, Bus, ErrorOut>
 where
     AddressIn: Copy,
     AddressOut: Copy,
     Bus: BusAccess<AddressOut, Instant>,
 {
     /// Construct a new instance of an adapter for the given `bus` object
-    pub fn new(bus: Bus, translate: fn(AddressIn) -> AddressOut, map_err: fn(Bus::Error) -> ErrorOut) -> Self {
+    pub fn new(
+        bus: Bus,
+        translate: fn(AddressIn) -> AddressOut,
+        map_err: fn(Bus::Error) -> ErrorOut,
+    ) -> Self {
         Self {
             bus,
             translate,
@@ -334,7 +366,8 @@ where
     }
 }
 
-impl<AddressIn, AddressOut, Instant, Bus, ErrorOut> BusAccess<AddressIn, Instant> for BusAdapter<AddressIn, AddressOut, Instant, Bus, ErrorOut>
+impl<AddressIn, AddressOut, Instant, Bus, ErrorOut> BusAccess<AddressIn, Instant>
+    for BusAdapter<AddressIn, AddressOut, Instant, Bus, ErrorOut>
 where
     AddressIn: Copy,
     AddressOut: Copy,
@@ -344,17 +377,20 @@ where
     type Error = ErrorOut;
 
     #[inline]
-    fn read(&mut self, now: Instant, addr: AddressIn, data: &mut [u8]) -> Result<usize, Self::Error> {
+    fn read(
+        &mut self,
+        now: Instant,
+        addr: AddressIn,
+        data: &mut [u8],
+    ) -> Result<usize, Self::Error> {
         let addr = (self.translate)(addr);
-        self.bus.read(now, addr, data)
-            .map_err(self.map_err)
+        self.bus.read(now, addr, data).map_err(self.map_err)
     }
 
     #[inline]
     fn write(&mut self, now: Instant, addr: AddressIn, data: &[u8]) -> Result<usize, Self::Error> {
         let addr = (self.translate)(addr);
-        self.bus.write(now, addr, data)
-            .map_err(self.map_err)
+        self.bus.write(now, addr, data).map_err(self.map_err)
     }
 }
 
@@ -375,13 +411,23 @@ mod test {
         impl BusAccess<u64, Instant> for Memory {
             type Error = Error;
 
-            fn read(&mut self, _now: Instant, addr: u64, data: &mut [u8]) -> Result<usize, Self::Error> {
+            fn read(
+                &mut self,
+                _now: Instant,
+                addr: u64,
+                data: &mut [u8],
+            ) -> Result<usize, Self::Error> {
                 let addr = addr as usize;
                 data.copy_from_slice(&self.0[addr..addr + data.len()]);
                 Ok(data.len())
             }
 
-            fn write(&mut self, _now: Instant, addr: u64, data: &[u8]) -> Result<usize, Self::Error> {
+            fn write(
+                &mut self,
+                _now: Instant,
+                addr: u64,
+                data: &[u8],
+            ) -> Result<usize, Self::Error> {
                 let addr = addr as usize;
                 self.0[addr..addr + data.len()].copy_from_slice(data);
                 Ok(data.len())
@@ -392,8 +438,14 @@ mod test {
 
         let number = 0x1234_5678;
         bus.write_beu32(Instant::now(), 0, number).unwrap();
-        assert_eq!(u32::from_be_bytes(bus.0[0..4].try_into().unwrap()), 0x1234_5678);
+        assert_eq!(
+            u32::from_be_bytes(bus.0[0..4].try_into().unwrap()),
+            0x1234_5678
+        );
 
-        assert_eq!(bus.read_u32(ByteOrder::Big, Instant::now(), 0).unwrap(), number);
+        assert_eq!(
+            bus.read_u32(ByteOrder::Big, Instant::now(), 0).unwrap(),
+            number
+        );
     }
 }

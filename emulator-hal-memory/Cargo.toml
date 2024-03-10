@@ -1,20 +1,19 @@
 [package]
-name = "emulator-hal"
+name = "emulator-hal-memory"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.60"
 categories = ["no-std", "emulators", "simulation"]
 keywords = ["emulators", "simulation"]
-description = "a set of traits for interfacing between emulated hardware devices"
+description = "implementations of emulator-hal for memory objects"
 authors = ["transistor fet <trans@jabberwocky.ca>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/transistorfet/emulator-hal"
 
 [dependencies]
-fugit = { version = "0.3", optional = true }
-femtos = { version = "0.1", optional = true }
+emulator-hal = { path = "../emulator-hal" }
 
 [features]
-default = ["alloc"]
-alloc = []
+default = ["std"]
 std = []
+
