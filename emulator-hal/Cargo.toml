@@ -11,7 +11,11 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/transistorfet/moa"
 
 [dependencies]
+fugit = { version = "0.3", optional = true }
+femtos = { version = "0.1", optional = true }
+embedded-time = { version = "0.12", optional = true }
 
 [features]
 default = ["alloc"]
 alloc = []
+std = []
