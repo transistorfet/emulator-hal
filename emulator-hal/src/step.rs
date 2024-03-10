@@ -8,10 +8,9 @@ use crate::bus::BusAccess;
 ///
 /// Typically this would represent both CPU devices and peripheral devices that use a clock
 /// signal to advance some internal process, such as a timer or state machine
-pub trait Step<Address, Instant, Bus>
+pub trait Step<Instant, Bus>
 where
-    Address: Copy,
-    Bus: BusAccess<Address, Instant>,
+    Bus: BusAccess<Instant>,
 {
     /// A type that is return if the step cannot be performed
     ///
@@ -35,10 +34,9 @@ where
 // TODO should this depend on Step, which is the most common way it will be used, even though it technically could
 // be used for a device that just has a bus interface with no clock
 /// Inspect the state of a device, and emit it to an object that implements `fmt::Write`
-pub trait Inspect<Address, Instant, Bus, Writer>
+pub trait Inspect<Instant, Bus, Writer>
 where
-    Address: Copy,
-    Bus: BusAccess<Address, Instant>,
+    Bus: BusAccess<Instant>,
     Writer: fmt::Write,
 {
     /// A type that describes the types of information or state that this device can emit
@@ -57,20 +55,18 @@ where
 }
 
 /// Control the execution of a CPU device for debugging purposes
-pub trait Debug<Address, Instant, Bus, Writer>:
-    Inspect<Address, Instant, Bus, Writer> + Step<Address, Instant, Bus>
+pub trait Debug<Instant, Bus, Writer>: Inspect<Instant, Bus, Writer> + Step<Instant, Bus>
 where
-    Address: Copy,
-    Bus: BusAccess<Address, Instant>,
+    Bus: BusAccess<Instant>,
     Writer: fmt::Write,
 {
     /// Represents an error that can occur while debugging
     type DebugError;
 
     /// Returns the `Address` where execution will take place the next time `step()` is called
-    fn get_execution_address(&mut self) -> Result<Address, Self::DebugError>;
+    fn get_execution_address(&mut self) -> Result<Bus::Address, Self::DebugError>;
     /// Sets the `Address` where execution will take place the next time `step()` is called
-    fn set_execution_address(&mut self, address: Address) -> Result<(), Self::DebugError>;
+    fn set_execution_address(&mut self, address: Bus::Address) -> Result<(), Self::DebugError>;
 
     // TODO this is too vague
     /// Perform a debug command
@@ -95,7 +91,8 @@ mod test {
 
     struct Memory(Vec<u8>);
 
-    impl BusAccess<u32, Instant> for Memory {
+    impl BusAccess<Instant> for Memory {
+        type Address = u32;
         type Error = SimpleBusError;
 
         fn read(
@@ -125,7 +122,8 @@ mod test {
 
     struct Output();
 
-    impl BusAccess<u16, Instant> for Output {
+    impl BusAccess<Instant> for Output {
+        type Address = u16;
         type Error = OutputError;
 
         fn read(
@@ -149,7 +147,8 @@ mod test {
         memory: Memory,
     }
 
-    impl BusAccess<u64, Instant> for FixedBus {
+    impl BusAccess<Instant> for FixedBus {
+        type Address = u64;
         type Error = Error;
 
         fn read(&mut self, now: Instant, addr: u64, data: &mut [u8]) -> Result<usize, Self::Error> {
@@ -178,10 +177,14 @@ mod test {
     }
 
     struct DynamicBus {
-        devices: Vec<(Range<u64>, Box<dyn BusAccess<u64, Instant, Error = Error>>)>,
+        devices: Vec<(
+            Range<u64>,
+            Box<dyn BusAccess<Instant, Address = u64, Error = Error>>,
+        )>,
     }
 
-    impl BusAccess<u64, Instant> for DynamicBus {
+    impl BusAccess<Instant> for DynamicBus {
+        type Address = u64;
         type Error = Error;
 
         fn read(&mut self, now: Instant, addr: u64, data: &mut [u8]) -> Result<usize, Self::Error> {
@@ -210,9 +213,10 @@ mod test {
         running: bool,
     }
 
-    impl<Bus> Step<u64, Instant, Bus> for Cpu
+    impl<Address, Bus> Step<Instant, Bus> for Cpu
     where
-        Bus: BusAccess<u64, Instant>,
+        Address: From<u64>,
+        Bus: BusAccess<Instant, Address = Address>,
         Error: From<Bus::Error>,
     {
         type Error = Error;
@@ -223,13 +227,13 @@ mod test {
 
         fn reset(&mut self, now: Instant, bus: &mut Bus) -> Result<(), Self::Error> {
             self.running = true;
-            self.pc = bus.read_beu32(now, 0x0000)? as u64;
+            self.pc = bus.read_beu32(now, 0x0000.into())? as u64;
             Ok(())
         }
 
         fn step(&mut self, now: Instant, bus: &mut Bus) -> Result<Instant, Self::Error> {
             if self.running {
-                let value = bus.read_beu32(now, self.pc)?;
+                let value = bus.read_beu32(now, self.pc.into())?;
                 self.pc += 4;
 
                 if value == 0 {
@@ -262,11 +266,10 @@ mod test {
                 .unwrap();
         }
 
-        fn run_static_test<A, B, C>(bus: &mut B, cpu: &mut C) -> Result<(), C::Error>
+        fn run_static_test<B, C>(bus: &mut B, cpu: &mut C) -> Result<(), C::Error>
         where
-            A: Copy,
-            B: BusAccess<A, Instant>,
-            C: Step<A, Instant, B>,
+            B: BusAccess<Instant>,
+            C: Step<Instant, B>,
             C::Error: From<B::Error>,
         {
             cpu.reset(Instant::now(), bus)?;
@@ -320,13 +323,13 @@ mod test {
                 .unwrap();
         }
 
-        type Bus = Box<dyn BusAccess<u64, Instant, Error = Error>>;
+        type Bus = Box<dyn BusAccess<Instant, Address = u64, Error = Error>>;
 
         //let _trait_obj_cpu: &mut dyn Step<Bus, Error = Error> = &mut cpu;
 
         fn run_dynamic_test(
             mut bus: Bus,
-            cpu: &mut dyn Step<u64, Instant, Bus, Error = Error>,
+            cpu: &mut dyn Step<Instant, Bus, Error = Error>,
         ) -> Result<(), Error> {
             cpu.reset(Instant::now(), &mut bus)?;
 

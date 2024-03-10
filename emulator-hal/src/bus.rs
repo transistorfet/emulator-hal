@@ -64,10 +64,10 @@ pub enum ByteOrder {
 /// used by a controller (eg. CPU).  The address can either be a single number or a tuple to
 /// represent different address spaces, such as memory vs I/O spaces as in the Z80 CPUs, or
 /// supervisor vs user access as in the Function Code present on 68k CPUs.
-pub trait BusAccess<Address, Instant>
-where
-    Address: Copy,
-{
+pub trait BusAccess<Instant> {
+    /// The type of an address into this bus
+    type Address: Copy;
+
     /// The type of an error returned by this bus
     type Error: Error;
 
@@ -78,17 +78,27 @@ where
     ///
     /// Returns the number of bytes read, which would normally be the same as `data.len()`
     /// but could be less or zero if no data is returned
-    fn read(&mut self, now: Instant, addr: Address, data: &mut [u8]) -> Result<usize, Self::Error>;
+    fn read(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        data: &mut [u8],
+    ) -> Result<usize, Self::Error>;
 
     /// Write an arbitrary length of bytes into this device, at time `now`
     ///
     /// Returns the number of bytes written, which would normally be the same as `data.len()`
     /// but could be less or zero if no data was written or the memory was read-only
-    fn write(&mut self, now: Instant, addr: Address, data: &[u8]) -> Result<usize, Self::Error>;
+    fn write(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        data: &[u8],
+    ) -> Result<usize, Self::Error>;
 
     /// Read a single u8 value at the given address
     #[inline]
-    fn read_u8(&mut self, now: Instant, addr: Address) -> Result<u8, Self::Error> {
+    fn read_u8(&mut self, now: Instant, addr: Self::Address) -> Result<u8, Self::Error> {
         let mut data = [0; 1];
         self.read(now, addr, &mut data)?;
         Ok(data[0])
@@ -96,7 +106,7 @@ where
 
     /// Read a single u16 value in big endian byte order at the given address
     #[inline]
-    fn read_beu16(&mut self, now: Instant, addr: Address) -> Result<u16, Self::Error> {
+    fn read_beu16(&mut self, now: Instant, addr: Self::Address) -> Result<u16, Self::Error> {
         let mut data = [0; 2];
         self.read(now, addr, &mut data)?;
         Ok(u16::from_be_bytes(data))
@@ -104,7 +114,7 @@ where
 
     /// Read a single u16 value in little endian byte order at the given address
     #[inline]
-    fn read_leu16(&mut self, now: Instant, addr: Address) -> Result<u16, Self::Error> {
+    fn read_leu16(&mut self, now: Instant, addr: Self::Address) -> Result<u16, Self::Error> {
         let mut data = [0; 2];
         self.read(now, addr, &mut data)?;
         Ok(u16::from_le_bytes(data))
@@ -116,7 +126,7 @@ where
         &mut self,
         order: ByteOrder,
         now: Instant,
-        addr: Address,
+        addr: Self::Address,
     ) -> Result<u16, Self::Error> {
         match order {
             ByteOrder::Little => self.read_leu16(now, addr),
@@ -126,7 +136,7 @@ where
 
     /// Read a single u32 value in big endian byte order at the given address
     #[inline]
-    fn read_beu32(&mut self, now: Instant, addr: Address) -> Result<u32, Self::Error> {
+    fn read_beu32(&mut self, now: Instant, addr: Self::Address) -> Result<u32, Self::Error> {
         let mut data = [0; 4];
         self.read(now, addr, &mut data)?;
         Ok(u32::from_be_bytes(data))
@@ -134,7 +144,7 @@ where
 
     /// Read a single u32 value in little endian byte order at the given address
     #[inline]
-    fn read_leu32(&mut self, now: Instant, addr: Address) -> Result<u32, Self::Error> {
+    fn read_leu32(&mut self, now: Instant, addr: Self::Address) -> Result<u32, Self::Error> {
         let mut data = [0; 4];
         self.read(now, addr, &mut data)?;
         Ok(u32::from_le_bytes(data))
@@ -146,7 +156,7 @@ where
         &mut self,
         order: ByteOrder,
         now: Instant,
-        addr: Address,
+        addr: Self::Address,
     ) -> Result<u32, Self::Error> {
         match order {
             ByteOrder::Little => self.read_leu32(now, addr),
@@ -156,7 +166,7 @@ where
 
     /// Read a single u64 value in big endian byte order at the given address
     #[inline]
-    fn read_beu64(&mut self, now: Instant, addr: Address) -> Result<u64, Self::Error> {
+    fn read_beu64(&mut self, now: Instant, addr: Self::Address) -> Result<u64, Self::Error> {
         let mut data = [0; 8];
         self.read(now, addr, &mut data)?;
         Ok(u64::from_be_bytes(data))
@@ -164,7 +174,7 @@ where
 
     /// Read a single u64 value in little endian byte order at the given address
     #[inline]
-    fn read_leu64(&mut self, now: Instant, addr: Address) -> Result<u64, Self::Error> {
+    fn read_leu64(&mut self, now: Instant, addr: Self::Address) -> Result<u64, Self::Error> {
         let mut data = [0; 8];
         self.read(now, addr, &mut data)?;
         Ok(u64::from_le_bytes(data))
@@ -176,7 +186,7 @@ where
         &mut self,
         order: ByteOrder,
         now: Instant,
-        addr: Address,
+        addr: Self::Address,
     ) -> Result<u64, Self::Error> {
         match order {
             ByteOrder::Little => self.read_leu64(now, addr),
@@ -186,7 +196,12 @@ where
 
     /// Write a single u8 value to the given address
     #[inline]
-    fn write_u8(&mut self, now: Instant, addr: Address, value: u8) -> Result<(), Self::Error> {
+    fn write_u8(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        value: u8,
+    ) -> Result<(), Self::Error> {
         let data = [value];
         self.write(now, addr, &data)?;
         Ok(())
@@ -194,7 +209,12 @@ where
 
     /// Write the given u16 value in big endian byte order to the given address
     #[inline]
-    fn write_beu16(&mut self, now: Instant, addr: Address, value: u16) -> Result<(), Self::Error> {
+    fn write_beu16(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        value: u16,
+    ) -> Result<(), Self::Error> {
         let data = value.to_be_bytes();
         self.write(now, addr, &data)?;
         Ok(())
@@ -202,7 +222,12 @@ where
 
     /// Write the given u16 value in little endian byte order to the given address
     #[inline]
-    fn write_leu16(&mut self, now: Instant, addr: Address, value: u16) -> Result<(), Self::Error> {
+    fn write_leu16(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        value: u16,
+    ) -> Result<(), Self::Error> {
         let data = value.to_le_bytes();
         self.write(now, addr, &data)?;
         Ok(())
@@ -214,7 +239,7 @@ where
         &mut self,
         order: ByteOrder,
         now: Instant,
-        addr: Address,
+        addr: Self::Address,
         value: u16,
     ) -> Result<(), Self::Error> {
         match order {
@@ -225,7 +250,12 @@ where
 
     /// Write the given u32 value in big endian byte order to the given address
     #[inline]
-    fn write_beu32(&mut self, now: Instant, addr: Address, value: u32) -> Result<(), Self::Error> {
+    fn write_beu32(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        value: u32,
+    ) -> Result<(), Self::Error> {
         let data = value.to_be_bytes();
         self.write(now, addr, &data)?;
         Ok(())
@@ -233,7 +263,12 @@ where
 
     /// Write the given u32 value in little endian byte order to the given address
     #[inline]
-    fn write_leu32(&mut self, now: Instant, addr: Address, value: u32) -> Result<(), Self::Error> {
+    fn write_leu32(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        value: u32,
+    ) -> Result<(), Self::Error> {
         let data = value.to_le_bytes();
         self.write(now, addr, &data)?;
         Ok(())
@@ -245,7 +280,7 @@ where
         &mut self,
         order: ByteOrder,
         now: Instant,
-        addr: Address,
+        addr: Self::Address,
         value: u32,
     ) -> Result<(), Self::Error> {
         match order {
@@ -256,7 +291,12 @@ where
 
     /// Write the given u64 value in big endian byte order to the given address
     #[inline]
-    fn write_beu64(&mut self, now: Instant, addr: Address, value: u64) -> Result<(), Self::Error> {
+    fn write_beu64(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        value: u64,
+    ) -> Result<(), Self::Error> {
         let data = value.to_be_bytes();
         self.write(now, addr, &data)?;
         Ok(())
@@ -264,7 +304,12 @@ where
 
     /// Write the given u64 value in little endian byte order to the given address
     #[inline]
-    fn write_leu64(&mut self, now: Instant, addr: Address, value: u64) -> Result<(), Self::Error> {
+    fn write_leu64(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        value: u64,
+    ) -> Result<(), Self::Error> {
         let data = value.to_le_bytes();
         self.write(now, addr, &data)?;
         Ok(())
@@ -276,7 +321,7 @@ where
         &mut self,
         order: ByteOrder,
         now: Instant,
-        addr: Address,
+        addr: Self::Address,
         value: u64,
     ) -> Result<(), Self::Error> {
         match order {
@@ -286,39 +331,49 @@ where
     }
 }
 
-impl<Address, Instant, T> BusAccess<Address, Instant> for &mut T
+impl<Instant, T> BusAccess<Instant> for &mut T
 where
-    Address: Copy,
-    T: BusAccess<Address, Instant> + ?Sized,
+    T: BusAccess<Instant> + ?Sized,
 {
+    type Address = T::Address;
     type Error = T::Error;
 
     #[inline]
-    fn read(&mut self, now: Instant, addr: Address, data: &mut [u8]) -> Result<usize, T::Error> {
+    fn read(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        data: &mut [u8],
+    ) -> Result<usize, T::Error> {
         T::read(self, now, addr, data)
     }
 
     #[inline]
-    fn write(&mut self, now: Instant, addr: Address, data: &[u8]) -> Result<usize, T::Error> {
+    fn write(&mut self, now: Instant, addr: Self::Address, data: &[u8]) -> Result<usize, T::Error> {
         T::write(self, now, addr, data)
     }
 }
 
 #[cfg(feature = "alloc")]
-impl<Address, Instant, T> BusAccess<Address, Instant> for alloc::boxed::Box<T>
+impl<Instant, T> BusAccess<Instant> for alloc::boxed::Box<T>
 where
-    Address: Copy,
-    T: BusAccess<Address, Instant> + ?Sized,
+    T: BusAccess<Instant> + ?Sized,
 {
+    type Address = T::Address;
     type Error = T::Error;
 
     #[inline]
-    fn read(&mut self, now: Instant, addr: Address, data: &mut [u8]) -> Result<usize, T::Error> {
+    fn read(
+        &mut self,
+        now: Instant,
+        addr: Self::Address,
+        data: &mut [u8],
+    ) -> Result<usize, T::Error> {
         T::read(self, now, addr, data)
     }
 
     #[inline]
-    fn write(&mut self, now: Instant, addr: Address, data: &[u8]) -> Result<usize, T::Error> {
+    fn write(&mut self, now: Instant, addr: Self::Address, data: &[u8]) -> Result<usize, T::Error> {
         T::write(self, now, addr, data)
     }
 }
@@ -332,7 +387,7 @@ pub struct BusAdapter<AddressIn, AddressOut, Instant, Bus, ErrorOut>
 where
     AddressIn: Copy,
     AddressOut: Copy,
-    Bus: BusAccess<AddressOut, Instant>,
+    Bus: BusAccess<Instant>,
 {
     /// The underlying object implementing `BusAccess` that this object adapts
     pub bus: Bus,
@@ -349,7 +404,7 @@ impl<AddressIn, AddressOut, Instant, Bus, ErrorOut>
 where
     AddressIn: Copy,
     AddressOut: Copy,
-    Bus: BusAccess<AddressOut, Instant>,
+    Bus: BusAccess<Instant>,
 {
     /// Construct a new instance of an adapter for the given `bus` object
     pub fn new(
@@ -366,14 +421,15 @@ where
     }
 }
 
-impl<AddressIn, AddressOut, Instant, Bus, ErrorOut> BusAccess<AddressIn, Instant>
+impl<AddressIn, AddressOut, Instant, Bus, ErrorOut> BusAccess<Instant>
     for BusAdapter<AddressIn, AddressOut, Instant, Bus, ErrorOut>
 where
     AddressIn: Copy,
     AddressOut: Copy,
-    Bus: BusAccess<AddressOut, Instant>,
+    Bus: BusAccess<Instant, Address = AddressOut>,
     ErrorOut: Error,
 {
+    type Address = AddressIn;
     type Error = ErrorOut;
 
     #[inline]
@@ -408,13 +464,14 @@ mod test {
 
         struct Memory(Vec<u8>);
 
-        impl BusAccess<u64, Instant> for Memory {
+        impl BusAccess<Instant> for Memory {
+            type Address = u64;
             type Error = Error;
 
             fn read(
                 &mut self,
                 _now: Instant,
-                addr: u64,
+                addr: Self::Address,
                 data: &mut [u8],
             ) -> Result<usize, Self::Error> {
                 let addr = addr as usize;
@@ -425,7 +482,7 @@ mod test {
             fn write(
                 &mut self,
                 _now: Instant,
-                addr: u64,
+                addr: Self::Address,
                 data: &[u8],
             ) -> Result<usize, Self::Error> {
                 let addr = addr as usize;
