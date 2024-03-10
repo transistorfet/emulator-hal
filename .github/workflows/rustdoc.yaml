@@ -1,0 +1,24 @@
+name: rustdoc
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronized, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  rustdocs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustdoc
+
+      - name: Build rustdoc
+        run: |
+          cargo doc

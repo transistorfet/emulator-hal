@@ -1,0 +1,37 @@
+name: test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronized, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+env:
+  RUSTFLAGS: '--deny warnings'
+
+jobs:
+  test-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+
+      - name: Run tests with default features
+        run: |
+          cargo test
+
+      - name: Run tests with all features
+        run: |
+          cargo build --features=std,fugit,femtos
+
+      - name: Run test with no_std
+        run: |
+          cargo test --no-default-features
+
+
