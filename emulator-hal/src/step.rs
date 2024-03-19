@@ -50,10 +50,16 @@ where
     /// Write the given information type to the given writer, or return an error
     fn inspect(
         &mut self,
-        writer: &mut Writer,
         info: Self::InfoType,
         bus: &mut Bus,
+        writer: &mut Writer,
     ) -> Result<(), Self::Error>;
+
+    /// Write a brief summary of the device's current state to the given writer, or return an error
+    fn brief_summary(&mut self, bus: &mut Bus, writer: &mut Writer) -> Result<(), Self::Error>;
+
+    /// Write a detailed summary of the device's current state to the given writer, or return an error
+    fn detailed_summary(&mut self, bus: &mut Bus, writer: &mut Writer) -> Result<(), Self::Error>;
 }
 
 /// Control the execution of a CPU device for debugging purposes
@@ -72,9 +78,16 @@ where
     /// Sets the `Address` where execution will take place the next time `step()` is called
     fn set_execution_address(&mut self, address: Address) -> Result<(), Self::DebugError>;
 
-    // TODO this is too vague
-    /// Perform a debug command
-    fn run_command(&mut self, bus: &mut Bus, args: &[&str]) -> Result<bool, Self::DebugError>;
+    /// Add a breakpoint
+    fn add_breakpoint(&mut self, address: Address);
+    /// Remove a breakpoint
+    fn remove_breakpoint(&mut self, address: Address);
+    /// Clear all breakpoints
+    fn clear_breakpoints(&mut self);
+
+    // todo this is too vague
+    // perform a debug command
+    //fn run_command(&mut self, command: Self::Command, bus: &mut bus) -> result<bool, self::debugerror>;
 }
 
 #[cfg(test)]
