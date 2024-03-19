@@ -75,10 +75,11 @@ where
     */
 }
 
-impl<Address, Instant> BusAccess<Address, Instant> for MemoryBlock<Address, Instant>
+impl<Address, Instant> BusAccess<Instant> for MemoryBlock<Address, Instant>
 where
     Address: TryInto<usize> + Copy,
 {
+    type Address = Address;
     type Error = SimpleBusError;
 
     fn read(
