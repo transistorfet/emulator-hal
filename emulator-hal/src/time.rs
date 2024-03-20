@@ -40,16 +40,30 @@ impl Instant for Duration {
 }
 
 #[cfg(feature = "fugit")]
-impl<T, const NOM: u32, const DENOM: u32> Instant for fugit::Instant<T, NOM, DENOM>
+impl<const NOM: u32, const DENOM: u32> Instant for fugit::Instant<u32, NOM, DENOM>
 where
-    Self: Add<fugit::Duration<T, NOM, DENOM>>,
+    Self: Add<fugit::Duration<u32, NOM, DENOM>, Output = Self>,
 {
-    const START: Self = fugit::Duration::from_ticks(0);
+    const START: Self = fugit::Instant::<u32, NOM, DENOM>::from_ticks(0);
 
-    type Duration = fugit::Duration<T, NOM, DENOM>;
+    type Duration = fugit::Duration<u32, NOM, DENOM>;
 
     fn hertz_to_duration(hertz: u64) -> Self::Duration {
-        fugit::Duration::from_ticks(DENOM / hertz)
+        fugit::Duration::<u32, NOM, DENOM>::from_ticks(DENOM / hertz as u32)
+    }
+}
+
+#[cfg(feature = "fugit")]
+impl<const NOM: u32, const DENOM: u32> Instant for fugit::Instant<u64, NOM, DENOM>
+where
+    Self: Add<fugit::Duration<u64, NOM, DENOM>, Output = Self>,
+{
+    const START: Self = fugit::Instant::<u64, NOM, DENOM>::from_ticks(0);
+
+    type Duration = fugit::Duration<u64, NOM, DENOM>;
+
+    fn hertz_to_duration(hertz: u64) -> Self::Duration {
+        fugit::Duration::<u64, NOM, DENOM>::from_ticks(DENOM as u64 / hertz)
     }
 }
 

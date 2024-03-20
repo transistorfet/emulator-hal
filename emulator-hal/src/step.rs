@@ -95,9 +95,10 @@ mod test {
     use super::*;
 
     use crate::bus::{self, BusAdapter, SimpleBusError};
+    use crate::time::Instant;
     use std::ops::Range;
     use std::str;
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     #[derive(Clone, Debug)]
     enum Error {
@@ -108,12 +109,12 @@ mod test {
 
     struct Memory(Vec<u8>);
 
-    impl BusAccess<u32, Instant> for Memory {
+    impl BusAccess<u32, Duration> for Memory {
         type Error = SimpleBusError;
 
         fn read(
             &mut self,
-            _now: Instant,
+            _now: Duration,
             addr: u32,
             data: &mut [u8],
         ) -> Result<usize, Self::Error> {
@@ -122,7 +123,7 @@ mod test {
             Ok(data.len())
         }
 
-        fn write(&mut self, _now: Instant, addr: u32, data: &[u8]) -> Result<usize, Self::Error> {
+        fn write(&mut self, _now: Duration, addr: u32, data: &[u8]) -> Result<usize, Self::Error> {
             let addr = addr as usize;
             self.0[addr..addr + data.len()].copy_from_slice(data);
             Ok(data.len())
@@ -138,19 +139,19 @@ mod test {
 
     struct Output();
 
-    impl BusAccess<u16, Instant> for Output {
+    impl BusAccess<u16, Duration> for Output {
         type Error = OutputError;
 
         fn read(
             &mut self,
-            _now: Instant,
+            _now: Duration,
             _addr: u16,
             _data: &mut [u8],
         ) -> Result<usize, Self::Error> {
             Ok(0)
         }
 
-        fn write(&mut self, _now: Instant, _addr: u16, data: &[u8]) -> Result<usize, Self::Error> {
+        fn write(&mut self, _now: Duration, _addr: u16, data: &[u8]) -> Result<usize, Self::Error> {
             let string = str::from_utf8(data).map_err(|_| OutputError::Utf8Error)?;
             print!("{}", string);
             Ok(data.len())
@@ -162,10 +163,15 @@ mod test {
         memory: Memory,
     }
 
-    impl BusAccess<u64, Instant> for FixedBus {
+    impl BusAccess<u64, Duration> for FixedBus {
         type Error = Error;
 
-        fn read(&mut self, now: Instant, addr: u64, data: &mut [u8]) -> Result<usize, Self::Error> {
+        fn read(
+            &mut self,
+            now: Duration,
+            addr: u64,
+            data: &mut [u8],
+        ) -> Result<usize, Self::Error> {
             if (0..0x1_0000).contains(&addr) {
                 self.memory
                     .read(now, addr as u32 % 0x1_0000, data)
@@ -177,7 +183,7 @@ mod test {
             }
         }
 
-        fn write(&mut self, now: Instant, addr: u64, data: &[u8]) -> Result<usize, Self::Error> {
+        fn write(&mut self, now: Duration, addr: u64, data: &[u8]) -> Result<usize, Self::Error> {
             if (0..0x1_0000).contains(&addr) {
                 self.memory
                     .write(now, addr as u32 % 0x1_0000, data)
@@ -191,13 +197,18 @@ mod test {
     }
 
     struct DynamicBus {
-        devices: Vec<(Range<u64>, Box<dyn BusAccess<u64, Instant, Error = Error>>)>,
+        devices: Vec<(Range<u64>, Box<dyn BusAccess<u64, Duration, Error = Error>>)>,
     }
 
-    impl BusAccess<u64, Instant> for DynamicBus {
+    impl BusAccess<u64, Duration> for DynamicBus {
         type Error = Error;
 
-        fn read(&mut self, now: Instant, addr: u64, data: &mut [u8]) -> Result<usize, Self::Error> {
+        fn read(
+            &mut self,
+            now: Duration,
+            addr: u64,
+            data: &mut [u8],
+        ) -> Result<usize, Self::Error> {
             for (range, device) in self.devices.iter_mut() {
                 if range.contains(&addr) {
                     return device.read(now, addr, data).map_err(|_| Error::BusError);
@@ -206,7 +217,7 @@ mod test {
             Ok(0)
         }
 
-        fn write(&mut self, now: Instant, addr: u64, data: &[u8]) -> Result<usize, Self::Error> {
+        fn write(&mut self, now: Duration, addr: u64, data: &[u8]) -> Result<usize, Self::Error> {
             for (range, device) in self.devices.iter_mut() {
                 if range.contains(&addr) {
                     return device.write(now, addr, data).map_err(|_| Error::BusError);
@@ -223,9 +234,9 @@ mod test {
         running: bool,
     }
 
-    impl<Bus> Step<u64, Instant, Bus> for Cpu
+    impl<Bus> Step<u64, Duration, Bus> for Cpu
     where
-        Bus: BusAccess<u64, Instant>,
+        Bus: BusAccess<u64, Duration>,
         Error: From<Bus::Error>,
     {
         type Error = Error;
@@ -234,13 +245,13 @@ mod test {
             self.running
         }
 
-        fn reset(&mut self, now: Instant, bus: &mut Bus) -> Result<(), Self::Error> {
+        fn reset(&mut self, now: Duration, bus: &mut Bus) -> Result<(), Self::Error> {
             self.running = true;
             self.pc = bus.read_beu32(now, 0x0000)? as u64;
             Ok(())
         }
 
-        fn step(&mut self, now: Instant, bus: &mut Bus) -> Result<Instant, Self::Error> {
+        fn step(&mut self, now: Duration, bus: &mut Bus) -> Result<Duration, Self::Error> {
             if self.running {
                 let value = bus.read_beu32(now, self.pc)?;
                 self.pc += 4;
@@ -266,26 +277,26 @@ mod test {
 
         let location = 0x100;
         bus.memory
-            .write_beu32(Instant::now(), 0x0000, location as u32)
+            .write_beu32(Duration::START, 0x0000, location as u32)
             .unwrap();
 
         for i in 0..100 {
             bus.memory
-                .write_beu32(Instant::now(), location + 4 * i as u32, 1 + i as u32)
+                .write_beu32(Duration::START, location + 4 * i as u32, 1 + i as u32)
                 .unwrap();
         }
 
         fn run_static_test<A, B, C>(bus: &mut B, cpu: &mut C) -> Result<(), C::Error>
         where
             A: Copy,
-            B: BusAccess<A, Instant>,
-            C: Step<A, Instant, B>,
+            B: BusAccess<A, Duration>,
+            C: Step<A, Duration, B>,
             C::Error: From<B::Error>,
         {
-            cpu.reset(Instant::now(), bus)?;
+            cpu.reset(Duration::START, bus)?;
 
             while cpu.is_running() {
-                cpu.step(Instant::now(), bus)?;
+                cpu.step(Duration::START, bus)?;
             }
             Ok(())
         }
@@ -325,26 +336,26 @@ mod test {
         let mut cpu = Cpu::default();
 
         let location = 0x100 as u64;
-        bus.write_beu32(Instant::now(), 0x0000, location as u32)
+        bus.write_beu32(Duration::START, 0x0000, location as u32)
             .unwrap();
 
         for i in 0..100 {
-            bus.write_beu32(Instant::now(), location + 4 * i as u64, 1 + i as u32)
+            bus.write_beu32(Duration::START, location + 4 * i as u64, 1 + i as u32)
                 .unwrap();
         }
 
-        type Bus = Box<dyn BusAccess<u64, Instant, Error = Error>>;
+        type Bus = Box<dyn BusAccess<u64, Duration, Error = Error>>;
 
         //let _trait_obj_cpu: &mut dyn Step<Bus, Error = Error> = &mut cpu;
 
         fn run_dynamic_test(
             mut bus: Bus,
-            cpu: &mut dyn Step<u64, Instant, Bus, Error = Error>,
+            cpu: &mut dyn Step<u64, Duration, Bus, Error = Error>,
         ) -> Result<(), Error> {
-            cpu.reset(Instant::now(), &mut bus)?;
+            cpu.reset(Duration::START, &mut bus)?;
 
             while cpu.is_running() {
-                cpu.step(Instant::now(), &mut bus)?;
+                cpu.step(Duration::START, &mut bus)?;
             }
             Ok(())
         }
