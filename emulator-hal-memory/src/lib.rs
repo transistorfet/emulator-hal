@@ -8,6 +8,7 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use emulator_hal::bus::{BusAccess, SimpleBusError};
+use emulator_hal::time;
 
 /// A contiguous block of memory, backed by a `Vec`
 pub struct MemoryBlock<Address, Instant>
@@ -75,10 +76,12 @@ where
     */
 }
 
-impl<Address, Instant> BusAccess<Address, Instant> for MemoryBlock<Address, Instant>
+impl<Address, Instant> BusAccess<Address> for MemoryBlock<Address, Instant>
 where
     Address: TryInto<usize> + Copy,
+    Instant: time::Instant,
 {
+    type Instant = Instant;
     type Error = SimpleBusError;
 
     fn read(
@@ -111,7 +114,8 @@ where
 mod tests {
     use super::*;
     use alloc::vec;
-    use std::time::Instant;
+    use emulator_hal::time::Instant;
+    use std::time::Duration;
 
     #[test]
     fn test_memory_block() {
@@ -124,11 +128,11 @@ mod tests {
             }
         }
 
-        let mut memory = MemoryBlock::<u64, Instant>::from(vec![0; 1024]);
+        let mut memory = MemoryBlock::<u64, Duration>::from(vec![0; 1024]);
 
         let number = 0x1234_5678;
-        memory.write_leu32(Instant::now(), 0, number).unwrap();
-        let result = memory.read_leu32(Instant::now(), 0).unwrap();
+        memory.write_leu32(Duration::START, 0, number).unwrap();
+        let result = memory.read_leu32(Duration::START, 0).unwrap();
         assert_eq!(result, number);
     }
 }

@@ -8,10 +8,10 @@ use crate::bus::BusAccess;
 ///
 /// Typically this would represent both CPU devices and peripheral devices that use a clock
 /// signal to advance some internal process, such as a timer or state machine
-pub trait Step<Address, Instant, Bus>
+pub trait Step<Address, Bus>
 where
     Address: Copy,
-    Bus: BusAccess<Address, Instant>,
+    Bus: BusAccess<Address>,
 {
     /// A type that is return if the step cannot be performed
     ///
@@ -22,23 +22,23 @@ where
     fn is_running(&mut self) -> bool;
 
     /// Reset the device to its initial state, as if the device's reset signal was asserted
-    fn reset(&mut self, now: Instant, bus: &mut Bus) -> Result<(), Self::Error>;
+    fn reset(&mut self, now: Bus::Instant, bus: &mut Bus) -> Result<(), Self::Error>;
 
     /// Step the process by one unit of time, and return the time at which this function should be called again
     ///
     /// The given `Instant` is the time at which this step occurs, and the returned `Instant` is the time that the
     /// next step should occur, according to the device itself.  The given bus can be used to access the system
     /// during this step of execution
-    fn step(&mut self, now: Instant, bus: &mut Bus) -> Result<Instant, Self::Error>;
+    fn step(&mut self, now: Bus::Instant, bus: &mut Bus) -> Result<Bus::Instant, Self::Error>;
 }
 
 // TODO should this depend on Step, which is the most common way it will be used, even though it technically could
 // be used for a device that just has a bus interface with no clock
 /// Inspect the state of a device, and emit it to an object that implements `fmt::Write`
-pub trait Inspect<Address, Instant, Bus, Writer>
+pub trait Inspect<Address, Bus, Writer>
 where
     Address: Copy,
-    Bus: BusAccess<Address, Instant>,
+    Bus: BusAccess<Address>,
     Writer: fmt::Write,
 {
     /// A type that describes the types of information or state that this device can emit
@@ -63,11 +63,10 @@ where
 }
 
 /// Control the execution of a CPU device for debugging purposes
-pub trait Debug<Address, Instant, Bus, Writer>:
-    Inspect<Address, Instant, Bus, Writer> + Step<Address, Instant, Bus>
+pub trait Debug<Address, Bus, Writer>: Inspect<Address, Bus, Writer> + Step<Address, Bus>
 where
     Address: Copy,
-    Bus: BusAccess<Address, Instant>,
+    Bus: BusAccess<Address>,
     Writer: fmt::Write,
 {
     /// Represents an error that can occur while debugging
@@ -109,7 +108,8 @@ mod test {
 
     struct Memory(Vec<u8>);
 
-    impl BusAccess<u32, Duration> for Memory {
+    impl BusAccess<u32> for Memory {
+        type Instant = Duration;
         type Error = SimpleBusError;
 
         fn read(
@@ -139,7 +139,8 @@ mod test {
 
     struct Output();
 
-    impl BusAccess<u16, Duration> for Output {
+    impl BusAccess<u16> for Output {
+        type Instant = Duration;
         type Error = OutputError;
 
         fn read(
@@ -163,7 +164,8 @@ mod test {
         memory: Memory,
     }
 
-    impl BusAccess<u64, Duration> for FixedBus {
+    impl BusAccess<u64> for FixedBus {
+        type Instant = Duration;
         type Error = Error;
 
         fn read(
@@ -197,10 +199,14 @@ mod test {
     }
 
     struct DynamicBus {
-        devices: Vec<(Range<u64>, Box<dyn BusAccess<u64, Duration, Error = Error>>)>,
+        devices: Vec<(
+            Range<u64>,
+            Box<dyn BusAccess<u64, Instant = Duration, Error = Error>>,
+        )>,
     }
 
-    impl BusAccess<u64, Duration> for DynamicBus {
+    impl BusAccess<u64> for DynamicBus {
+        type Instant = Duration;
         type Error = Error;
 
         fn read(
@@ -234,9 +240,9 @@ mod test {
         running: bool,
     }
 
-    impl<Bus> Step<u64, Duration, Bus> for Cpu
+    impl<Bus> Step<u64, Bus> for Cpu
     where
-        Bus: BusAccess<u64, Duration>,
+        Bus: BusAccess<u64, Instant = Duration>,
         Error: From<Bus::Error>,
     {
         type Error = Error;
@@ -289,8 +295,8 @@ mod test {
         fn run_static_test<A, B, C>(bus: &mut B, cpu: &mut C) -> Result<(), C::Error>
         where
             A: Copy,
-            B: BusAccess<A, Duration>,
-            C: Step<A, Duration, B>,
+            B: BusAccess<A, Instant = Duration>,
+            C: Step<A, B>,
             C::Error: From<B::Error>,
         {
             cpu.reset(Duration::START, bus)?;
@@ -344,13 +350,13 @@ mod test {
                 .unwrap();
         }
 
-        type Bus = Box<dyn BusAccess<u64, Duration, Error = Error>>;
+        type Bus = Box<dyn BusAccess<u64, Instant = Duration, Error = Error>>;
 
         //let _trait_obj_cpu: &mut dyn Step<Bus, Error = Error> = &mut cpu;
 
         fn run_dynamic_test(
             mut bus: Bus,
-            cpu: &mut dyn Step<u64, Duration, Bus, Error = Error>,
+            cpu: &mut dyn Step<u64, Bus, Error = Error>,
         ) -> Result<(), Error> {
             cpu.reset(Duration::START, &mut bus)?;
 
