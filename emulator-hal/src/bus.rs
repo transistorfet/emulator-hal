@@ -1,14 +1,36 @@
 //! Traits for emulating read and write bus operations
 
 use core::fmt;
-
+use core::convert::Infallible;
 use crate::time::Instant;
+
+/// Used to translate an address from one address space into another
+pub trait FromAddress<T> {
+    /// Translate the given address into an address of type `Self`
+    fn from_address(address: T) -> Self;
+}
+
+/// Used to translate an address from one address space into another
+pub trait IntoAddress<T> {
+    /// Translate the given address into an address of type `T`
+    fn into_address(self) -> T;
+}
+
+impl<T, S> IntoAddress<T> for S
+where
+    T: FromAddress<S>,
+{
+    fn into_address(self) -> T {
+        T::from_address(self)
+    }
+}
 
 /// Represents an error that occurred during a bus transaction
 pub trait Error: fmt::Debug {}
 
 //impl<T: fmt::Debug + ?Sized> Error for T {}
 
+// TODO should you have this?  Should you rename it?
 /// A simple pre-defined error type for bus transactions
 #[derive(Debug)]
 #[non_exhaustive]
@@ -28,27 +50,10 @@ pub enum SimpleBusError {
     Other,
 }
 
-// TODO the blanket impl covers this
+// TODO the blanket impl covers this, but the blanket impl causes other problems
 impl Error for SimpleBusError {}
 
-/*
-// TODO this would allow the error type to be shared between traits
-
-/// Represents the types common to a bus abstraction
-pub trait ErrorType {
-    /// The type of an error returned by this bus
-    type Error: BusError;
-}
-
-impl<T: ErrorType + ?Sized> ErrorType for &mut T {
-    type Error = T::Error;
-}
-
-#[cfg(feature = "alloc")]
-impl<T: ErrorType + ?Sized> ErrorType for alloc::boxed::Box<T> {
-    type Error = T::Error;
-}
-*/
+impl Error for Infallible {}
 
 /// Represents the order of bytes in a `BusAccess` operation
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
