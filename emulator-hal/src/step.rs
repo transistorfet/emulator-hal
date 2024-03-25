@@ -11,7 +11,7 @@ use crate::bus::BusAccess;
 pub trait Step<Address, Bus>
 where
     Address: Copy,
-    Bus: BusAccess<Address>,
+    Bus: BusAccess<Address> + ?Sized,
 {
     /// A type that is return if the step cannot be performed
     ///
@@ -38,7 +38,7 @@ where
 pub trait Inspect<Address, Bus, Writer>
 where
     Address: Copy,
-    Bus: BusAccess<Address>,
+    Bus: BusAccess<Address> + ?Sized,
     Writer: fmt::Write,
 {
     /// A type that describes the types of information or state that this device can emit
@@ -66,7 +66,7 @@ where
 pub trait Debug<Address, Bus, Writer>: Inspect<Address, Bus, Writer> + Step<Address, Bus>
 where
     Address: Copy,
-    Bus: BusAccess<Address>,
+    Bus: BusAccess<Address> + ?Sized,
     Writer: fmt::Write,
 {
     /// Represents an error that can occur while debugging
