@@ -1,8 +1,8 @@
 //! Traits for emulating read and write bus operations
 
-use core::fmt;
-use core::convert::Infallible;
 use crate::time::Instant;
+use core::convert::Infallible;
+use core::fmt;
 
 /// Used to translate an address from one address space into another
 pub trait FromAddress<T> {
