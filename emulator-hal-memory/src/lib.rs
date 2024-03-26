@@ -7,8 +7,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
-use emulator_hal::bus::{BusAccess, SimpleBusError};
-use emulator_hal::time;
+use emulator_hal::{BusAccess, SimpleBusError, Instant as EmuInstant};
 
 /// A contiguous block of memory, backed by a `Vec`
 pub struct MemoryBlock<Address, Instant>
@@ -79,7 +78,7 @@ where
 impl<Address, Instant> BusAccess<Address> for MemoryBlock<Address, Instant>
 where
     Address: TryInto<usize> + Copy,
-    Instant: time::Instant,
+    Instant: EmuInstant,
 {
     type Instant = Instant;
     type Error = SimpleBusError;
@@ -114,7 +113,7 @@ where
 mod tests {
     use super::*;
     use alloc::vec;
-    use emulator_hal::time::Instant;
+    use emulator_hal::Instant;
     use std::time::Duration;
 
     #[test]

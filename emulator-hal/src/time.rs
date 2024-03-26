@@ -4,7 +4,7 @@ use core::ops::{Add, Mul};
 use core::time::Duration;
 
 /// Represents a monotonic instant in time
-pub trait Instant: Add<Self::Duration, Output = Self> + Copy {
+pub trait Instant: Add<Self::Duration, Output = Self> + Eq + Ord + Copy {
     /// The start of the epoch according to this time representation
     const START: Self;
 
