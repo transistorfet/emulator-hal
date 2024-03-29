@@ -7,7 +7,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
-use emulator_hal::{BusAccess, SimpleBusError, Instant as EmuInstant};
+use emulator_hal::{BusAccess, Instant as EmuInstant, SimpleBusError};
 
 /// A contiguous block of memory, backed by a `Vec`
 pub struct MemoryBlock<Address, Instant>

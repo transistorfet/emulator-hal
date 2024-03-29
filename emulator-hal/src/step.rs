@@ -2,8 +2,8 @@
 
 use core::fmt;
 
-use crate::time::Instant;
 use crate::bus::BusAccess;
+use crate::time::Instant;
 
 /// Represents a device that can change state with the passage of a clock signal
 ///
@@ -71,8 +71,8 @@ where
 /// Control the execution of a CPU device for debugging purposes
 pub trait Debug<Address, Bus, Writer>: Inspect<Bus, Writer> + Step<Bus>
 where
-    Address: Copy,
     // TODO without the added BusAccess<Address> constraint, this Address isn't tied to the bus, and it's left to the implementer to add that constraint
+    Address: Copy,
     Bus: ?Sized,
     Writer: fmt::Write,
 {

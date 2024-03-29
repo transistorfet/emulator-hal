@@ -401,7 +401,7 @@ where
     Bus: BusAccess<AddressOut>,
 {
     /// The underlying object implementing `BusAccess` that this object adapts
-    pub bus: Bus,
+    pub inner: Bus,
     /// The translation function applied
     pub translate: fn(AddressIn) -> AddressOut,
     /// The error mapping function applied
@@ -416,12 +416,12 @@ where
 {
     /// Construct a new instance of an adapter for the given `bus` object
     pub fn new(
-        bus: Bus,
+        inner: Bus,
         translate: fn(AddressIn) -> AddressOut,
         map_err: fn(Bus::Error) -> ErrorOut,
     ) -> Self {
         Self {
-            bus,
+            inner,
             translate,
             map_err,
         }
@@ -447,7 +447,7 @@ where
         data: &mut [u8],
     ) -> Result<usize, Self::Error> {
         let addr = (self.translate)(addr);
-        self.bus.read(now, addr, data).map_err(self.map_err)
+        self.inner.read(now, addr, data).map_err(self.map_err)
     }
 
     #[inline]
@@ -458,7 +458,7 @@ where
         data: &[u8],
     ) -> Result<usize, Self::Error> {
         let addr = (self.translate)(addr);
-        self.bus.write(now, addr, data).map_err(self.map_err)
+        self.inner.write(now, addr, data).map_err(self.map_err)
     }
 }
 
