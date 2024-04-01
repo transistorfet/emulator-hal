@@ -18,3 +18,5 @@ femtos = { version = "0.1", optional = true }
 default = ["alloc"]
 alloc = []
 std = []
+fugit = ["dep:fugit"]
+femtos = ["dep:femtos"]

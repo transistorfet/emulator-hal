@@ -5,6 +5,9 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+mod adapter;
+pub use crate::adapter::*;
+
 mod bus;
 pub use crate::bus::*;
 

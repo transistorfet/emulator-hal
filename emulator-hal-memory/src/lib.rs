@@ -7,29 +7,21 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
-use emulator_hal::{BusAccess, Instant as EmuInstant, SimpleBusError};
+use emulator_hal::{BusAccess, Instant as EmuInstant, BasicBusError};
 
 /// A contiguous block of memory, backed by a `Vec`
-pub struct MemoryBlock<Address, Instant>
-where
-    Address: Copy,
-{
+pub struct MemoryBlock<Instant> {
     read_only: bool,
     contents: Vec<u8>,
-    address: PhantomData<Address>,
     instant: PhantomData<Instant>,
 }
 
-impl<Address, Instant> MemoryBlock<Address, Instant>
-where
-    Address: Copy,
-{
+impl<Instant> MemoryBlock<Instant> {
     /// Construct a memory block from a given `Vec`
     pub fn from(contents: Vec<u8>) -> Self {
         MemoryBlock {
             read_only: false,
             contents,
-            address: PhantomData,
             instant: PhantomData,
         }
     }
@@ -46,42 +38,35 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<Address, Instant> MemoryBlock<Address, Instant>
-where
-    Address: TryInto<usize> + Copy,
-{
-    /*
-    pub fn load(filename: &str) -> Result<Self, Bus::Error> {
-        use std::fs;
+use std::io;
 
-        match fs::read(filename) {
-            Ok(contents) => Ok(MemoryBlock::from(contents)),
-            Err(_) => Err(Error::new(format!("Error reading contents of {}", filename))),
-        }
+#[cfg(feature = "std")]
+impl<Instant> MemoryBlock<Instant> {
+    /// Load the binary contents of a file into a new `MemoryBlock`
+    ///
+    /// The resulting `MemoryBlock` will be sized to exactly the length of the file
+    pub fn load(filename: &str) -> Result<Self, io::Error> {
+        let contents = std::fs::read(filename)?;
+        Ok(MemoryBlock::from(contents))
     }
 
-    pub fn load_at(&mut self, addr: Address, filename: &str) -> Result<(), Bus::Error> {
-        use std::fs;
-
-        let addr = addr.try_into()?;
-        match fs::read(filename) {
-            Ok(contents) => {
-                self.contents[(addr as usize)..(addr as usize) + contents.len()].copy_from_slice(&contents);
-                Ok(())
-            },
-            Err(_) => Err(Error::new(format!("Error reading contents of {}", filename))),
-        }
+    /// Load the binary contents of a file into an existing `MemoryBlock` at the given address
+    ///
+    /// The `MemoryBlock` must already be big enough to contain the contents of the file
+    pub fn load_at(&mut self, addr: usize, filename: &str) -> Result<(), io::Error> {
+        let contents = std::fs::read(filename)?;
+        self.contents[(addr as usize)..(addr as usize) + contents.len()].copy_from_slice(&contents);
+        Ok(())
     }
-    */
 }
 
-impl<Address, Instant> BusAccess<Address> for MemoryBlock<Address, Instant>
+impl<Address, Instant> BusAccess<Address> for MemoryBlock<Instant>
 where
     Address: TryInto<usize> + Copy,
     Instant: EmuInstant,
 {
     type Instant = Instant;
-    type Error = SimpleBusError;
+    type Error = BasicBusError;
 
     fn read(
         &mut self,
@@ -91,19 +76,19 @@ where
     ) -> Result<usize, Self::Error> {
         let addr = addr
             .try_into()
-            .map_err(|_| SimpleBusError::UnmappedAddress)?;
+            .map_err(|_| BasicBusError::UnmappedAddress)?;
         data.copy_from_slice(&self.contents[addr..addr + data.len()]);
         Ok(data.len())
     }
 
     fn write(&mut self, _now: Instant, addr: Address, data: &[u8]) -> Result<usize, Self::Error> {
         if self.read_only {
-            //return Err(Error::breakpoint(format!("Attempt to write to read-only memory at {:x} with data {:?}", addr, data)));
+            return Ok(0);
         }
 
         let addr = addr
             .try_into()
-            .map_err(|_| SimpleBusError::UnmappedAddress)?;
+            .map_err(|_| BasicBusError::UnmappedAddress)?;
         self.contents[addr..addr + data.len()].copy_from_slice(data);
         Ok(data.len())
     }
@@ -127,7 +112,7 @@ mod tests {
             }
         }
 
-        let mut memory = MemoryBlock::<u64, Duration>::from(vec![0; 1024]);
+        let mut memory = MemoryBlock::<Duration>::from(vec![0; 1024]);
 
         let number = 0x1234_5678;
         memory.write_leu32(Duration::START, 0, number).unwrap();

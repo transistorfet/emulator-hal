@@ -2,7 +2,6 @@
 
 use core::fmt;
 
-use crate::bus::BusAccess;
 use crate::time::Instant;
 
 /// Represents a device that can change state with the passage of a clock signal
@@ -96,8 +95,7 @@ where
 mod test {
     use super::*;
 
-    use crate::bus::{self, BusAdapter, SimpleBusError};
-    use crate::time::Instant;
+    use crate::{BusAccess, Instant, BusAdapter, BasicBusError, Error as EmuError};
     use std::ops::Range;
     use std::str;
     use std::time::Duration;
@@ -107,13 +105,13 @@ mod test {
         BusError,
     }
 
-    impl bus::Error for Error {}
+    impl EmuError for Error {}
 
     struct Memory(Vec<u8>);
 
     impl BusAccess<u32> for Memory {
         type Instant = Duration;
-        type Error = SimpleBusError;
+        type Error = BasicBusError;
 
         fn read(
             &mut self,
@@ -138,7 +136,7 @@ mod test {
         Utf8Error,
     }
 
-    impl bus::Error for OutputError {}
+    impl EmuError for OutputError {}
 
     struct Output();
 
