@@ -1,6 +1,6 @@
 //! Bus Adapters to translate address and error type
 
-use crate::{BusAccess, Error};
+use crate::{BasicBusError, BusAccess, Error, Instant as EmuInstant};
 use core::marker::PhantomData;
 
 /// Used to translate an address from one address space into another
@@ -162,6 +162,41 @@ where
     ) -> Result<usize, Self::Error> {
         let addr = addr.into_address();
         self.inner.write(now, addr, data).map_err(|err| err.into())
+    }
+}
+
+/// A dummy object that implements BusAccess, but does nothing
+///
+/// This object can be used instead of `Option<Bus>` when an optional bus is not provided
+#[derive(Copy, Clone, Debug, Default)]
+pub struct NoBus<Instant>(PhantomData<Instant>);
+
+impl<Address, Instant> BusAccess<Address> for NoBus<Instant>
+where
+    Address: Copy,
+    Instant: EmuInstant,
+{
+    type Instant = Instant;
+    type Error = BasicBusError;
+
+    #[inline]
+    fn read(
+        &mut self,
+        _now: Self::Instant,
+        _addr: Address,
+        _data: &mut [u8],
+    ) -> Result<usize, Self::Error> {
+        Ok(0)
+    }
+
+    #[inline]
+    fn write(
+        &mut self,
+        _now: Self::Instant,
+        _addr: Address,
+        _data: &[u8],
+    ) -> Result<usize, Self::Error> {
+        Ok(0)
     }
 }
 
