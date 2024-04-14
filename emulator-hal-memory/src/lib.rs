@@ -55,7 +55,7 @@ impl<Instant> MemoryBlock<Instant> {
     /// The `MemoryBlock` must already be big enough to contain the contents of the file
     pub fn load_at(&mut self, addr: usize, filename: &str) -> Result<(), io::Error> {
         let contents = std::fs::read(filename)?;
-        self.contents[(addr as usize)..(addr as usize) + contents.len()].copy_from_slice(&contents);
+        self.contents[addr..addr + contents.len()].copy_from_slice(&contents);
         Ok(())
     }
 }
@@ -77,6 +77,11 @@ where
         let addr = addr
             .try_into()
             .map_err(|_| BasicBusError::UnmappedAddress)?;
+
+        if addr + data.len() > self.contents.len() {
+            return Err(BasicBusError::UnmappedAddress);
+        }
+
         data.copy_from_slice(&self.contents[addr..addr + data.len()]);
         Ok(data.len())
     }
@@ -89,6 +94,11 @@ where
         let addr = addr
             .try_into()
             .map_err(|_| BasicBusError::UnmappedAddress)?;
+
+        if addr + data.len() > self.contents.len() {
+            return Err(BasicBusError::UnmappedAddress);
+        }
+
         self.contents[addr..addr + data.len()].copy_from_slice(data);
         Ok(data.len())
     }

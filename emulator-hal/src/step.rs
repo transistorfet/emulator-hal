@@ -95,7 +95,7 @@ where
 mod test {
     use super::*;
 
-    use crate::{BusAccess, Instant, BusAdapter, BasicBusError, Error as EmuError};
+    use crate::{BasicBusError, BusAccess, BusAdapter, Error as EmuError, Instant};
     use std::ops::Range;
     use std::str;
     use std::time::Duration;
@@ -106,6 +106,12 @@ mod test {
     }
 
     impl EmuError for Error {}
+
+    impl From<BasicBusError> for Error {
+        fn from(_err: BasicBusError) -> Self {
+            Error::BusError
+        }
+    }
 
     struct Memory(Vec<u8>);
 
@@ -137,6 +143,12 @@ mod test {
     }
 
     impl EmuError for OutputError {}
+
+    impl From<OutputError> for Error {
+        fn from(_err: OutputError) -> Self {
+            Error::BusError
+        }
+    }
 
     struct Output();
 
@@ -324,19 +336,11 @@ mod test {
             devices: vec![
                 (
                     0..0x1_0000,
-                    Box::new(BusAdapter::new(
-                        memory,
-                        |addr| addr as u32,
-                        |_| Error::BusError,
-                    )),
+                    Box::new(BusAdapter::new(memory, |addr| addr as u32)),
                 ),
                 (
                     0x2_0000..0x2_0010,
-                    Box::new(BusAdapter::new(
-                        output,
-                        |addr| addr as u16,
-                        |_| Error::BusError,
-                    )),
+                    Box::new(BusAdapter::new(output, |addr| addr as u16)),
                 ),
             ],
         };
