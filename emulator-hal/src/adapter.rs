@@ -171,6 +171,13 @@ where
 #[derive(Copy, Clone, Debug, Default)]
 pub struct NoBus<Instant>(PhantomData<Instant>);
 
+impl<Instant> NoBus<Instant> {
+    /// Returns a new dummy bus
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+
 impl<Address, Instant> BusAccess<Address> for NoBus<Instant>
 where
     Address: Copy,
