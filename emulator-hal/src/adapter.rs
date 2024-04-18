@@ -1,6 +1,6 @@
 //! Bus Adapters to translate address and error type
 
-use crate::{BasicBusError, BusAccess, Error, Instant as EmuInstant};
+use crate::{BasicBusError, BusAccess, ErrorType, Instant as EmuInstant};
 use core::marker::PhantomData;
 
 /// Used to translate an address from one address space into another
@@ -67,7 +67,7 @@ where
     AddressIn: Copy,
     AddressOut: Copy,
     Bus: BusAccess<AddressOut>,
-    ErrorOut: Error + From<Bus::Error>,
+    ErrorOut: ErrorType + From<Bus::Error>,
 {
     type Instant = Bus::Instant;
     type Error = ErrorOut;
@@ -137,7 +137,7 @@ where
     AddressIn: Copy,
     AddressOut: FromAddress<AddressIn> + Copy,
     Bus: BusAccess<AddressOut>,
-    ErrorOut: Error + From<Bus::Error>,
+    ErrorOut: ErrorType + From<Bus::Error>,
 {
     type Instant = Bus::Instant;
     type Error = ErrorOut;
@@ -210,12 +210,13 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::ErrorType;
     use std::time::Duration;
 
     #[derive(Clone, Debug)]
     enum Error {}
 
-    impl super::Error for Error {}
+    impl ErrorType for Error {}
 
     struct Memory(Vec<u8>);
 
@@ -253,7 +254,7 @@ mod test {
         BusError,
     }
 
-    impl super::Error for Error2 {}
+    impl ErrorType for Error2 {}
 
     impl From<Error> for Error2 {
         fn from(_err: Error) -> Self {

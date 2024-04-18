@@ -5,9 +5,9 @@ use core::convert::Infallible;
 use core::fmt;
 
 /// Represents an error that occurred during a bus transaction
-pub trait Error: fmt::Debug {}
+pub trait ErrorType: fmt::Debug {}
 
-impl Error for Infallible {}
+impl ErrorType for Infallible {}
 
 /// A simple pre-defined error type for bus transactions
 #[derive(Debug)]
@@ -21,14 +21,14 @@ pub enum BasicBusError {
 
     /// Some other kind of error has occurred
     #[cfg(feature = "alloc")]
-    Other(alloc::boxed::Box<dyn Error>),
+    Other(alloc::boxed::Box<dyn ErrorType>),
 
     /// Some other kind of error has occurred
     #[cfg(not(feature = "alloc"))]
     Other,
 }
 
-impl Error for BasicBusError {}
+impl ErrorType for BasicBusError {}
 
 /// Represents the order of bytes in a `BusAccess` operation
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -53,7 +53,7 @@ where
     type Instant: Instant;
 
     /// The type of an error returned by this bus
-    type Error: Error;
+    type Error: ErrorType;
 
     /// Read an arbitrary length of bytes from this device, at time `now`
     ///
@@ -371,7 +371,7 @@ mod test {
         #[derive(Clone, Debug)]
         enum Error {}
 
-        impl super::Error for Error {}
+        impl ErrorType for Error {}
 
         struct Memory(Vec<u8>);
 
