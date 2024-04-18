@@ -1,15 +1,16 @@
 //! Traits and implementations for coordinating time between emulated components
 
+use core::fmt::Debug;
 use core::ops::{Add, Mul};
 use core::time::Duration;
 
 /// Represents a monotonic instant in time
-pub trait Instant: Add<Self::Duration, Output = Self> + Copy {
+pub trait Instant: Add<Self::Duration, Output = Self> + Eq + Ord + Debug + Copy {
     /// The start of the epoch according to this time representation
     const START: Self;
 
     /// Represents a duration that can be added to an instant of this type
-    type Duration: Mul<u32, Output = Self::Duration>;
+    type Duration: Mul<u32, Output = Self::Duration> + Debug;
 
     /// Returns the duration of one period of the given frequency is hertz
     fn hertz_to_duration(hertz: u64) -> Self::Duration;

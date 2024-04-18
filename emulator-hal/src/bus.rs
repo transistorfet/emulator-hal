@@ -1,18 +1,18 @@
 //! Traits for emulating read and write bus operations
 
+use crate::time::Instant;
+use core::convert::Infallible;
 use core::fmt;
 
-use crate::time::Instant;
-
 /// Represents an error that occurred during a bus transaction
-pub trait Error: fmt::Debug {}
+pub trait ErrorType: fmt::Debug {}
 
-//impl<T: fmt::Debug + ?Sized> Error for T {}
+impl ErrorType for Infallible {}
 
 /// A simple pre-defined error type for bus transactions
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum SimpleBusError {
+pub enum BasicBusError {
     /// A write access was requested, but the target is read-only
     ReadOnly,
 
@@ -21,34 +21,14 @@ pub enum SimpleBusError {
 
     /// Some other kind of error has occurred
     #[cfg(feature = "alloc")]
-    Other(alloc::boxed::Box<dyn Error>),
+    Other(alloc::boxed::Box<dyn ErrorType>),
 
     /// Some other kind of error has occurred
     #[cfg(not(feature = "alloc"))]
     Other,
 }
 
-// TODO the blanket impl covers this
-impl Error for SimpleBusError {}
-
-/*
-// TODO this would allow the error type to be shared between traits
-
-/// Represents the types common to a bus abstraction
-pub trait ErrorType {
-    /// The type of an error returned by this bus
-    type Error: BusError;
-}
-
-impl<T: ErrorType + ?Sized> ErrorType for &mut T {
-    type Error = T::Error;
-}
-
-#[cfg(feature = "alloc")]
-impl<T: ErrorType + ?Sized> ErrorType for alloc::boxed::Box<T> {
-    type Error = T::Error;
-}
-*/
+impl ErrorType for BasicBusError {}
 
 /// Represents the order of bytes in a `BusAccess` operation
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -73,10 +53,7 @@ where
     type Instant: Instant;
 
     /// The type of an error returned by this bus
-    type Error: Error;
-
-    /// Returns the size of the addressable block that this device represents
-    //fn size(&self) -> usize;
+    type Error: ErrorType;
 
     /// Read an arbitrary length of bytes from this device, at time `now`
     ///
@@ -384,79 +361,6 @@ where
     }
 }
 
-/// An adapter that applies an address translation before accessing a wrapped bus object
-///
-/// This object implements the `BusAccess` trait, and takes address of type `AddressIn`,
-/// applies the provided address translation function to produce an address of type `AddressOut`,
-/// and then calls the equivalent trait method with that produced address, return the result
-pub struct BusAdapter<AddressIn, AddressOut, Bus, ErrorOut>
-where
-    AddressIn: Copy,
-    AddressOut: Copy,
-    Bus: BusAccess<AddressOut>,
-{
-    /// The underlying object implementing `BusAccess` that this object adapts
-    pub bus: Bus,
-    /// The translation function applied
-    pub translate: fn(AddressIn) -> AddressOut,
-    /// The error mapping function applied
-    pub map_err: fn(Bus::Error) -> ErrorOut,
-}
-
-impl<AddressIn, AddressOut, Bus, ErrorOut> BusAdapter<AddressIn, AddressOut, Bus, ErrorOut>
-where
-    AddressIn: Copy,
-    AddressOut: Copy,
-    Bus: BusAccess<AddressOut>,
-{
-    /// Construct a new instance of an adapter for the given `bus` object
-    pub fn new(
-        bus: Bus,
-        translate: fn(AddressIn) -> AddressOut,
-        map_err: fn(Bus::Error) -> ErrorOut,
-    ) -> Self {
-        Self {
-            bus,
-            translate,
-            map_err,
-        }
-    }
-}
-
-impl<AddressIn, AddressOut, Bus, ErrorOut> BusAccess<AddressIn>
-    for BusAdapter<AddressIn, AddressOut, Bus, ErrorOut>
-where
-    AddressIn: Copy,
-    AddressOut: Copy,
-    Bus: BusAccess<AddressOut>,
-    ErrorOut: Error,
-{
-    type Instant = Bus::Instant;
-    type Error = ErrorOut;
-
-    #[inline]
-    fn read(
-        &mut self,
-        now: Self::Instant,
-        addr: AddressIn,
-        data: &mut [u8],
-    ) -> Result<usize, Self::Error> {
-        let addr = (self.translate)(addr);
-        self.bus.read(now, addr, data).map_err(self.map_err)
-    }
-
-    #[inline]
-    fn write(
-        &mut self,
-        now: Self::Instant,
-        addr: AddressIn,
-        data: &[u8],
-    ) -> Result<usize, Self::Error> {
-        let addr = (self.translate)(addr);
-        self.bus.write(now, addr, data).map_err(self.map_err)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -467,7 +371,7 @@ mod test {
         #[derive(Clone, Debug)]
         enum Error {}
 
-        impl super::Error for Error {}
+        impl ErrorType for Error {}
 
         struct Memory(Vec<u8>);
 

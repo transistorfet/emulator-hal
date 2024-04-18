@@ -5,10 +5,17 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-pub mod bus;
+mod adapter;
+pub use crate::adapter::*;
 
-//pub mod interrupt;
+mod bus;
+pub use crate::bus::*;
 
-pub mod step;
+//mod interrupt;
+//pub use crate::interrupt::*;
 
-pub mod time;
+mod step;
+pub use crate::step::*;
+
+mod time;
+pub use crate::time::*;
